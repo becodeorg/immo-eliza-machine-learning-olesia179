@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-from sklearn.preprocessing import OneHotEncoder
 
 class Cleaner :
 
@@ -145,108 +144,6 @@ class Cleaner :
         return data
 
     @staticmethod
-    def flood_zone_nan_to_non_food_zone(data: pd.DataFrame) -> pd.DataFrame :
-        '''
-            Replace missing values in flood zone column with NON_FLOOD_ZONE
-            :param data: DataFrame to clean
-            :return: cleaned DataFrame
-        '''
-        flood_zone_replace_nan = lambda x : 'NON_FLOOD_ZONE' if pd.isnull(x) else x
-        data.floodZoneType = data.floodZoneType.apply(flood_zone_replace_nan)
-        return data
-    
-    @staticmethod
-    def clean_kitchen_type(data: pd.DataFrame) -> pd.DataFrame :
-        '''
-            Clean kitchen type column
-            :param data: DataFrame to clean
-            :return: cleaned DataFrame
-        '''
-        kitchen_type_cleaner = lambda x : 0 if pd.isnull(x) or "NOT" in x or "UN" in x else 0.5 if "SEMI" in x else 1
-
-        data['kitchenType'] = data['kitchenType'].apply(kitchen_type_cleaner)
-        return data
-    
-    @staticmethod
-    def treat_dictionaries(data: pd.DataFrame) -> pd.DataFrame :
-        '''
-            Treat 'dictionaries' in the dataset
-            :param data: DataFrame to clean
-            :return: cleaned DataFrame
-        '''
-        # 'buildingCondition', , 'terraceOrientation', 'epcScore'
-        cols = ['floodZoneType', 'heatingType', 'gardenOrientation']
-        # 'condition', , 'terrace', 'epcScore'
-        prefixes = ['', 'heating', 'garden']
-
-        data = pd.get_dummies(data, columns=cols, prefix = prefixes, dtype=int)
-        # Remove NON_FLOOD_ZONE column as we have replaced NaNs with NON_FLOOD_ZONE before)
-        data.drop(columns=['_NON_FLOOD_ZONE'], inplace=True)
-        # 'condition_AS_NEW',         #6
-        # 'condition_GOOD',           #5
-        # 'condition_JUST_RENOVATED', #4
-        # 'condition_TO_BE_DONE_UP',  #3
-        # 'condition_TO_RENOVATE',    #2
-        # 'condition_TO_RESTORE',     #1
-        data['buildingCondition'] = data['buildingCondition'].apply(lambda x : 0 if pd.isnull(x) else 
-                                        5 if 'AS_NEW' in x else
-                                        4 if 'GOOD' in x else
-                                        4 if 'JUST_RENOVATED' in x else
-                                        3 if 'TO_BE_DONE_UP' in x else
-                                        2 if 'TO_RENOVATE' in x else 1)
-        # 'epcScore_A',               #9
-        # 'epcScore_A+',              #8
-        # 'epcScore_A++',             #7
-        # 'epcScore_B',               #6   
-        # 'epcScore_C',               #5
-        # 'epcScore_D',               #4
-        # 'epcScore_E',               #3
-        # 'epcScore_F',               #2
-        # 'epcScore_G',               #1
-        data['epcScore'] = data['epcScore'].apply(lambda x : 0 if pd.isnull(x) else 
-                                            7 if 'A' == x else
-                                            8 if 'A+' == x else
-                                            9 if 'A++' == x else
-                                            6 if 'B' == x else
-                                            5 if 'C' == x else 
-                                            4 if 'D' == x else
-                                            3 if 'E' == x else
-                                            2 if 'F' == x else 1)
-        # 'SOUTH'         # 8
-        # 'SOUTH_EAST'    # 7     
-        # 'SOUTH_WEST'    # 6      
-        # 'EAST'          # 5
-        # 'WEST'          # 4
-        # 'NORTH_EAST'    # 3
-        # 'NORTH_WEST'    # 2
-        # 'NORTH'         # 
-        data['terraceOrientation'] = data.apply(lambda row : 0 if pd.isnull(row.terraceOrientation) else
-                                        8 if 'SOUTH' in row.terraceOrientation else
-                                        7 if 'SOUTH_EAST' in row.terraceOrientation else
-                                        6 if 'SOUTH_WEST' in row.terraceOrientation else
-                                        5 if 'EAST' in row.terraceOrientation else
-                                        4 if 'WEST' in row.terraceOrientation else
-                                        3 if 'NORTH_EAST' in row.terraceOrientation else
-                                        2 if 'NORTH_WEST' in row.terraceOrientation else 1, axis = 1)
-        return data
-        
-    @staticmethod
-    def create_region_column(data: pd.DataFrame) -> pd.DataFrame :
-        '''
-            Create region column based on province
-            :param data: DataFrame to clean
-            :return: cleaned DataFrame
-        '''
-        wallonie_provs = ['Luxembourg', 'Liège', 'Walloon Brabant', 'Namur' 'Hainaut']              # 1
-        flandre_provs = ['West Flanders', 'East Flanders', 'Antwerp', 'Flemish Brabant', 'Limburg'] # 2
-        # 'Brussels'                                                                                # 3
-
-        data['region'] = data['province'].apply(lambda x : 2 if x in flandre_provs else 
-                                              1 if x in wallonie_provs else 3)
-        # self.data.drop(columns=['province', 'locality'], inplace=True) #
-        return data
-    
-    @staticmethod
     def locality_to_upper(data: pd.DataFrame) -> pd.DataFrame :
         '''
             Convert locality column to uppercase
@@ -273,20 +170,6 @@ class Cleaner :
         return data
     
     @staticmethod
-    def one_hot_encode(data: pd.DataFrame) -> pd.DataFrame :
-        s = (data.dtypes == 'object')
-        object_cols = list(s[s].index)
-        print(f"Categorical variables: {object_cols}")
-        print(f'No. of. categorical features: {len(object_cols)}')
-        OH_encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
-        OH_cols = pd.DataFrame(OH_encoder.fit_transform(data[object_cols]))
-        OH_cols.index = data.index
-        OH_cols.columns = OH_encoder.get_feature_names_out()
-        data = data.drop(object_cols, axis=1)
-        data = pd.concat([data, OH_cols], axis=1)
-        return data
-
-    @staticmethod
     def clean_data() -> pd.DataFrame :
         return (
                 pd.DataFrame().pipe(Cleaner.load_data, Cleaner.__dataset_path)
@@ -302,9 +185,3 @@ class Cleaner :
                 .pipe(Cleaner.round_float)
                 .pipe(Cleaner.locality_to_upper)
             )
-        # #self.flood_zone_nan_to_non_food_zone()
-        # #self.clean_kitchen_type()
-        # #self.treat_dictionaries()
-        # #self.create_region_column()
-        # #self.one_hot_encode()
-        # return self.data
